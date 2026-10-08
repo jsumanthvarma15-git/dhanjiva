@@ -23,7 +23,7 @@ bun run build:vercel
 
 ## Browser checks
 
-After the production build, run `bun run preview --host 127.0.0.1 --port 4173` from `app`. In another terminal, run `bunx playwright install chromium webkit`, then `bun run test:browser`. The checks cover 320px to 1440px, landscape, Safari/WebKit, full-resolution defaults, quality switching, bounded video loading, reduced motion, and the form without database credentials. Run them without production database credentials; the form check deliberately expects an unconfigured database.
+After the production build, run `bun run preview --host 127.0.0.1 --port 4173` from `app`. In another terminal, run `bunx playwright install chromium webkit`, then `bun run test:browser`. The checks cover 320px to 1440px, landscape, Safari/WebKit, full-resolution defaults, mobile chapter separation, bounded video loading, reduced motion, and the form without database credentials. Run them without production database credentials; the form check deliberately expects an unconfigured database.
 
 ## Deploy to Vercel
 
@@ -48,7 +48,7 @@ Provide the database URL through your environment or secret manager. No database
 
 ## Media quality and mobile support
 
-High quality is the default on desktop, tablet, and mobile, including browsers that do not expose device RAM. It serves the original 1910 × 1080 clips directly as static assets; the build does not transcode or shrink them. Choose **Smooth / low data** explicitly for the lightweight clips. Both modes bound loaded videos and stop work when idle. Reduced-motion preferences show still images and fetch no videos.
+High quality is the default on desktop, tablet, and mobile, including browsers that do not expose device RAM. It serves the original 1910 × 1080 clips directly as static assets; the build does not transcode or shrink them. There is no quality selector or automatic resolution downgrade. Playback bounds loaded videos and stops work when idle. Reduced-motion preferences show still images and fetch no videos.
 
 Mobile displays the whole landscape frame instead of zooming it to fill a portrait screen. Text remains real HTML, so it stays sharp at high pixel density and when zoomed. The UI palette uses ivory, navy, and pale blue; original imagery keeps its natural colours. The available video source is 1080p, not native 4K or 8K.
 

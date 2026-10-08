@@ -104,3 +104,29 @@ body{min-width:280px}
  .connected-journey .scroll-scrub__media{bottom:108px}
 }
 .connected-journey .scroll-scrub__copy::before{display:none}
+
+/* One sticky mobile composition keeps chapter copy clear of the animation. */
+.scroll-scrub__mobile-copy{display:none}
+@media(max-width:900px){
+ .connected-journey .scroll-scrub__stage{display:flex;flex-direction:column;padding-top:68px}
+ .connected-journey .scroll-scrub__mobile-copy{display:block;position:relative;z-index:3;flex:0 0 auto;padding:20px;background:var(--paper)}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__title{font-size:clamp(28px,7.2vw,42px);max-width:22ch}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__body{font-size:16px;line-height:1.4;margin:12px 0;max-width:42ch}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__actions{display:flex;margin:0}
+ .connected-journey .scroll-scrub__media{position:relative;inset:auto;flex:1 1 0;min-height:0;width:100%;height:auto}
+ .connected-journey .scroll-scrub__poster,.connected-journey .scroll-scrub__video{object-fit:cover;object-position:var(--ss-mobile-position)}
+ .connected-journey .scroll-scrub__chapter-pin{visibility:hidden;pointer-events:none}
+ .connected-journey .scroll-scrub__chapter-pin .scroll-scrub__copy{pointer-events:none}
+}
+@media(max-width:900px) and (max-height:650px) and (orientation:portrait){
+ .connected-journey .scroll-scrub__mobile-copy{padding:14px 20px}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__title{font-size:28px}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__actions{display:none}
+}
+@media(max-width:900px) and (orientation:landscape){
+ .connected-journey .scroll-scrub__stage{flex-direction:row}
+ .connected-journey .scroll-scrub__mobile-copy{width:45%;padding:16px 20px}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__title{font-size:26px}
+ .connected-journey .scroll-scrub__mobile-copy .scroll-scrub__body{font-size:14px}
+ .connected-journey .scroll-scrub__media{height:100%;width:55%}
+}
