@@ -20,15 +20,15 @@ describe("scroll-scrub website landing contract", () => {
     expect(landingContent.features.items).toHaveLength(3);
   });
 
-  test("keeps public landing and full app routes separate", () => {
+  test("redirects the unused scaffold app route to the public website", () => {
     const landingRoute = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
     const appRoute = readFileSync(new URL("../src/routes/app.tsx", import.meta.url), "utf8");
 
     // scroll-scrub's home IS the site: "/" renders the journey instead of the
     // stock LandingPage. Everything else about the split is unchanged.
     expect(landingRoute).toContain("ScrollScrub");
-    expect(appRoute).toContain('createFileRoute("/app")');
-    expect(appRoute).toContain("previewMode");
+    expect(appRoute).toMatch(/createFileRoute\(['"]\/app['"]\)/);
+    expect(appRoute).toMatch(/redirect\(\{to:['"]\/['"]\}/);
   });
 
   test("ships the canonical generations workspace recipe", () => {

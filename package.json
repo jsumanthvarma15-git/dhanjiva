@@ -1,0 +1,12 @@
+{
+  "name": "dhanjiva-website",
+  "private": true,
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "cd app && bun run build:vercel && node scripts/copy-vercel-output.mjs",
+    "dev": "cd app && bun run dev"
+  }
+}
