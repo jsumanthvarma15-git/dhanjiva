@@ -87,10 +87,6 @@ interface RuntimeSegment extends Segment {
   abort?: AbortController;
 }
 
-interface Controller {
-  jumpToSection: (index: number) => void;
-}
-
 type ThemeStyle = CSSProperties & Record<`--ss-${string}`, string | number>;
 
 const clamp = (value: number, min = 0, max = 1) =>
@@ -174,10 +170,8 @@ export function ScrollScrub({
   onActiveSectionChange,
 }: ScrollScrubProps) {
   const rootRef = useRef<HTMLElement>(null);
-  const controllerRef = useRef<Controller | null>(null);
   const onActiveRef = useRef(onActiveSectionChange);
   const [activeSection, setActiveSection] = useState(0);
-  const [quality, setQuality] = useState<"high" | "light">("high");
   const segments = useMemo(
     () => buildSegments(scenes, connectors ?? []),
     [connectors, scenes]
@@ -218,7 +212,7 @@ export function ScrollScrub({
     const smallViewport = window.matchMedia("(max-width: 860px)");
     const isMobile = () => coarsePointer || smallViewport.matches;
     const sourceFor = (segment: RuntimeSegment) =>
-      quality === "light" && segment.mobileClip ? segment.mobileClip : segment.clip;
+      segment.clip;
     const runtime: RuntimeSegment[] = segments.map((segment, index) => ({
       ...segment,
       band: bandNodes[index],
@@ -543,24 +537,6 @@ export function ScrollScrub({
       }
     };
 
-    controllerRef.current = {
-      jumpToSection(index) {
-        const segment = runtime.find(
-          (candidate) =>
-            candidate.kind === "scene" && candidate.sectionIndex === index
-        );
-        if (!segment) {
-          return;
-        }
-        const top =
-          rootTop + segment.start + 0.15 * (segment.end - segment.start);
-        window.scrollTo({
-          behavior: reduceMotion ? "auto" : "smooth",
-          top,
-        });
-      },
-    };
-
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
@@ -579,7 +555,6 @@ export function ScrollScrub({
 
     return () => {
       destroyed = true;
-      controllerRef.current = null;
       window.cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
@@ -596,7 +571,7 @@ export function ScrollScrub({
         segment.layer.style.removeProperty("z-index");
       }
     };
-  }, [segments, quality]);
+  }, [segments]);
 
   if (scenes.length === 0) {
     return null;
@@ -616,11 +591,15 @@ export function ScrollScrub({
       style={themeStyle}
     >
       <div className="scroll-scrub__stage">
-        <label className="quality-picker">Animation
-          <select aria-label="Animation quality" value={quality} onChange={(event) => setQuality(event.target.value as "high" | "light")}>
-            <option value="high">High quality</option><option value="light">Smooth / low data</option>
-          </select>
-        </label>
+        <div className="scroll-scrub__mobile-copy">
+          {scenes.map((scene, index) => (
+            <div key={scene.id} hidden={activeSection !== index}>
+              <p role="heading" aria-level={index === 0 ? 1 : 2} className="scroll-scrub__title">{scene.title}</p>
+              <p className="scroll-scrub__body">{scene.body}</p>
+              {scene.actions ? <div className="scroll-scrub__actions">{scene.actions}</div> : null}
+            </div>
+          ))}
+        </div>
         <div aria-hidden="true" className="scroll-scrub__media">
           {segments.map((segment, index) => {
             const layerStyle: ThemeStyle = {
@@ -635,12 +614,6 @@ export function ScrollScrub({
                 style={layerStyle}
               >
                 <picture className="scroll-scrub__picture">
-                  {segment.mobilePoster ? (
-                    <source
-                      media={quality === "light" ? "all" : "not all"}
-                      srcSet={segment.mobilePoster}
-                    />
-                  ) : null}
                   <img
                     alt=""
                     className="scroll-scrub__poster"
@@ -659,19 +632,6 @@ export function ScrollScrub({
           <span />
         </div>
 
-        <nav aria-label="Scroll chapters" className="scroll-scrub__route">
-          {scenes.map((scene, index) => (
-            <button
-              aria-current={activeSection === index ? "step" : undefined}
-              className="scroll-scrub__route-button"
-              key={scene.id}
-              onClick={() => controllerRef.current?.jumpToSection(index)}
-              type="button"
-            >
-              <span>{scene.label}</span>
-            </button>
-          ))}
-        </nav>
       </div>
 
       <div className="scroll-scrub__story">

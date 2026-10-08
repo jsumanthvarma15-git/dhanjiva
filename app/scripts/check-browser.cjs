@@ -19,13 +19,20 @@ const fs=require('node:fs');
   let maxVideos=0;
   for(const y of [800,2000,3600,5200,2500,300]){await page.evaluate(y=>scrollTo({top:y,behavior:'instant'}),y);await page.waitForTimeout(150);maxVideos=Math.max(maxVideos,await page.locator('video').count())}
   assert(maxVideos<=2);
-  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.getByLabel('Animation quality').selectOption('light');
-  await page.waitForFunction(()=>document.querySelector('video')?.videoWidth===960);
-  await page.getByLabel('Animation quality').selectOption('high');await page.waitForFunction(()=>document.querySelector('video')?.videoWidth===1910);
+  assert.equal(await page.locator('.quality-picker,.scroll-scrub__route').count(),0);
+  if(width<=900){
+   const bands=await page.locator('[data-scroll-scrub-band]').evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top+scrollY,height:n.offsetHeight})));
+   for(const band of bands){for(const fraction of [0.05,0.5,0.95]){
+    await page.evaluate(y=>scrollTo({top:y,behavior:'instant'}),band.top+band.height*fraction);await page.waitForTimeout(100);
+    const layout=await page.evaluate(()=>{const c=document.querySelector('.scroll-scrub__mobile-copy').getBoundingClientRect(),m=document.querySelector('.scroll-scrub__media').getBoundingClientRect();return {separate:c.bottom<=m.top+1||c.right<=m.left+1,mediaHeight:m.height};});
+    assert(layout.separate,JSON.stringify(layout));assert(layout.mediaHeight>=200,JSON.stringify(layout));
+   }}
+   await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:`/tmp/dhanjiva-mobile-fixed-${engine}-${width}.png`});
+  }
   await page.evaluate(()=>scrollTo({top:document.body.scrollHeight,behavior:'instant'}));await page.waitForTimeout(800);assert.equal(await page.locator('video').count(),0);
   const count=await page.evaluate(()=>window.__raf);await page.waitForTimeout(400);const idle=(await page.evaluate(()=>window.__raf))-count;assert(idle<=1);
   assert.equal(errors.length,0,errors.join('\n'));
-  reports.push({engine,width,height,overflow,highQualityWidth:1910,lightWidth:960,maxVideos,idleCallbacks:idle,errors});
+  reports.push({engine,width,height,overflow,highQualityWidth:1910,maxVideos,idleCallbacks:idle,errors});
   await browser.close();
  }
  const browser=await chromium.launch();const context=await browser.newContext({reducedMotion:'reduce',viewport:{width:390,height:844}});const page=await context.newPage();const media=[];page.on('request',r=>{if(r.url().includes('.mp4'))media.push(r.url())});await page.goto((process.env.BASE_URL || 'http://127.0.0.1:4173/'),{waitUntil:'networkidle'});assert.equal(media.length,0);await page.getByLabel('Your name').fill('Test User');await page.getByLabel('Work email').fill('test@example.com');await page.getByLabel('Hospital or organisation').fill('Test Hospital');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Request access'}).click();await page.getByRole('alert').waitFor();assert.match(await page.getByRole('alert').innerText(),/temporarily unavailable/);reports.push({reducedMotion:true,videoRequests:media.length,unconfiguredForm:'clear error, no false success'});await browser.close();
