@@ -19,3 +19,9 @@ Limitations: browser emulation is not a test on every physical device. Live data
 - Removed department navigation and quality selector; original HD sources remain enabled.
 - Mobile copy and video share a sticky stage, with separate non-overlapping areas. Video fills the remaining mobile viewport using a portrait crop. Desktop presentation rules are unchanged.
 - Browser checks sample three scroll positions in every department, checking text/video separation and a minimum 200px video height.
+
+## Continuous mobile playback
+
+- Mobile now range-loads the original HD video URLs, waits for decodable data, and smooths one continuous scroll timeline across chapter boundaries. Desktop retains its existing playback timing.
+- `node scripts/check-transitions.cjs` checks actual decoded frame times at four positions in every chapter in mobile Chromium and WebKit. All eight chapter runs advanced through the video at 1910px resolution.
+- Browser emulation does not replace testing on a physical iPhone, especially with Low Power Mode enabled.
