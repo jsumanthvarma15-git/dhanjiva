@@ -2,7 +2,7 @@
 
 Hospital management landing page with a scroll-controlled journey through outpatient, finance, pharmacy, and wards.
 
-Live website: https://dhanjiva-connected.higgsfield.app/
+Live website: https://dhanjiva.netlify.app/
 
 ## Development
 
@@ -24,7 +24,9 @@ bun run build
 
 ## Runtime
 
-React 19 and TanStack Start, built for Cloudflare Workers. The access-request form uses a D1 database binding named `DB`; database migrations are included in the app. A plain static host will not provide the form backend. Hosting and database setup are separate from copying this repository.
+React 19 and TanStack Start, deployed to Netlify using its TanStack Start Vite adapter. The root `netlify.toml` sets `app` as the build base and publishes `app/dist/client`; the adapter generates the server function and routing needed to render the website. Publishing static assets alone is not sufficient for this server-rendered site.
+
+The access-request form uses Netlify Database with Drizzle ORM. Its schema is in `app/db/schema.ts`, and deployment migrations are in `app/netlify/database/migrations`. Netlify provisions the database and applies migrations during deployment. The original Cloudflare configuration and D1 migrations remain as historical source files but are not used by Netlify.
 
 ## Animation
 
