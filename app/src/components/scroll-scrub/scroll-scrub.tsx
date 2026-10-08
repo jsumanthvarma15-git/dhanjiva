@@ -240,6 +240,9 @@ export function ScrollScrub({
     let direction = 1;
     let lastTick = 0;
     let inJourney = true;
+    let displayedY: number | undefined;
+    let timelineMoving = false;
+    let waitingForMedia = false;
     const wake = () => {
       if (!destroyed && !frame && !document.hidden) frame = requestAnimationFrame(tick);
     };
@@ -320,22 +323,16 @@ export function ScrollScrub({
       const request = segment.abort;
 
       try {
-        const response = await fetch(source, {
-          signal: request.signal,
-        });
-        if (!response.ok) {
-          throw new Error(`Clip failed: ${response.status}`);
+        // Mobile browsers can range-load the original file immediately instead
+        // of waiting for a complete HD blob before the first frame can move.
+        let objectUrl: string | undefined;
+        if (!isMobile()) {
+          const response = await fetch(source, { signal: request.signal });
+          if (!response.ok) throw new Error(`Clip failed: ${response.status}`);
+          const blob = await response.blob();
+          if (destroyed || request.signal.aborted || segment.loadedSource !== source) return;
+          objectUrl = URL.createObjectURL(blob);
         }
-        const blob = await response.blob();
-        if (
-          destroyed ||
-          request.signal.aborted ||
-          segment.loadedSource !== source
-        ) {
-          return;
-        }
-
-        const objectUrl = URL.createObjectURL(blob);
         const video = document.createElement("video");
         video.className = "scroll-scrub__video";
         video.muted = true;
@@ -345,7 +342,7 @@ export function ScrollScrub({
         video.setAttribute("playsinline", "");
         video.setAttribute("webkit-playsinline", "");
         video.disablePictureInPicture = true;
-        video.src = objectUrl;
+
 
         video.addEventListener(
           "loadedmetadata",
@@ -353,26 +350,23 @@ export function ScrollScrub({
             if (segment.video !== video || segment.loadedSource !== source) {
               return;
             }
-            segment.ready = true;
-            segment.loading = false;
+            segment.ready = video.readyState >= 2;
+            segment.loading = !segment.ready;
             dirty = true;
             wake();
           },
           { once: true }
         );
-        video.addEventListener(
-          "loadeddata",
-          () => {
-            if (
-              userReady &&
-              segment.video === video &&
-              segment.loadedSource === source
-            ) {
-              void primeVideo(video);
-            }
-          },
-          { once: true }
-        );
+        const onData = () => {
+          if (segment.video !== video || segment.loadedSource !== source) return;
+          segment.ready = video.readyState >= 2;
+          segment.loading = !segment.ready;
+          dirty = true;
+          wake();
+        };
+        video.addEventListener("loadeddata", onData);
+        video.addEventListener("canplay", onData);
+        video.addEventListener("progress", onData);
         video.addEventListener(
           "error",
           () => {
@@ -380,7 +374,7 @@ export function ScrollScrub({
               return;
             }
             video.remove();
-            URL.revokeObjectURL(objectUrl);
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
             delete segment.video;
             delete segment.objectUrl;
             segment.failed = true;
@@ -388,6 +382,8 @@ export function ScrollScrub({
             segment.ready = false;
             delete segment.layer.dataset.videoPainted;
             segment.layer.dataset.videoFailed = "true";
+            dirty = true;
+            wake();
           },
           { once: true }
         );
@@ -401,6 +397,9 @@ export function ScrollScrub({
         segment.layer.append(video);
         segment.objectUrl = objectUrl;
         segment.video = video;
+        video.src = objectUrl ?? source;
+        video.load();
+        if (userReady) void primeVideo(video);
       } catch (error) {
         if (
           request.signal.aborted ||
@@ -415,9 +414,28 @@ export function ScrollScrub({
       }
     };
 
-    const readScroll = () => {
+    const readScroll = (dt: number) => {
       const pageY = window.scrollY || window.pageYOffset;
-      const y = clamp(pageY - rootTop, 0, total);
+      const targetY = clamp(pageY - rootTop, 0, total);
+      const outsideJourney = pageY < rootTop - viewportHeight || pageY > rootTop + total;
+      waitingForMedia = false;
+      // Smooth the whole mobile journey, including chapter boundaries. Smoothing
+      // each clip alone lets a fast touch swipe jump straight to the next poster.
+      if (displayedY === undefined || !isMobile() || reduceMotion || outsideJourney) displayedY = targetY;
+      const delta = targetY - displayedY;
+      const step = Math.sign(delta) * Math.min(Math.abs(delta) * (1 - Math.exp(-dt / 140)), viewportHeight * dt / 450);
+      let nextY = displayedY + step;
+      if (isMobile() && !reduceMotion && !outsideJourney) {
+        const destination = runtime.find(segment => nextY >= segment.start && nextY < segment.end);
+        if (destination && !destination.ready && !destination.failed) {
+          waitingForMedia = true;
+          void loadClip(destination);
+          nextY = displayedY;
+        }
+      }
+      displayedY = Math.abs(targetY - nextY) < 0.5 ? targetY : nextY;
+      timelineMoving = Math.abs(targetY - displayedY) >= 0.5;
+      const y = displayedY;
       const crossfade = 0.04 * viewportHeight;
       inJourney = !document.hidden && pageY >= rootTop - viewportHeight && pageY <= rootTop + total;
       if (Math.abs(y - previousY) > 1) direction = y > previousY ? 1 : -1;
@@ -490,7 +508,7 @@ export function ScrollScrub({
       for (const segment of runtime) {
         const { video } = segment;
         if (!video || !segment.ready || !segment.visible) continue;
-        segment.current += (segment.target - segment.current) * alpha;
+        segment.current += (segment.target - segment.current) * (isMobile() ? 1 : alpha);
         if (Math.abs(segment.current - segment.target) < 0.0005) segment.current = segment.target;
         else unsettled = true;
         // Seek only to an actual frame, never repeatedly decode the same frame.
@@ -510,8 +528,10 @@ export function ScrollScrub({
       if (destroyed || document.hidden) return;
       const dt = lastTick ? Math.min(50, now - lastTick) : 16.7;
       lastTick = now;
-      if (dirty) { dirty = false; readScroll(); }
-      if (updateVideos(dt)) wake();
+      if (dirty || timelineMoving) { dirty = false; readScroll(dt); }
+      const videosMoving = updateVideos(dt);
+      // Await media readiness events instead of spinning while a clip downloads.
+      if (videosMoving || (timelineMoving && !waitingForMedia)) wake();
     };
 
     const onScroll = () => { dirty = true; wake(); };
