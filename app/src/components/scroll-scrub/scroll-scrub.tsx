@@ -177,6 +177,7 @@ export function ScrollScrub({
   const controllerRef = useRef<Controller | null>(null);
   const onActiveRef = useRef(onActiveSectionChange);
   const [activeSection, setActiveSection] = useState(0);
+  const [quality, setQuality] = useState<"high" | "light">("high");
   const segments = useMemo(
     () => buildSegments(scenes, connectors ?? []),
     [connectors, scenes]
@@ -216,12 +217,8 @@ export function ScrollScrub({
     ).matches;
     const smallViewport = window.matchMedia("(max-width: 860px)");
     const isMobile = () => coarsePointer || smallViewport.matches;
-    const device = navigator as Navigator & {deviceMemory?: number; connection?: {saveData?: boolean}};
-    // Unknown memory gets the lighter source rather than assuming a fast device.
-    const lightweight = (device.deviceMemory ?? 4) <= 4 ||
-      (navigator.hardwareConcurrency || 4) <= 4 || !!device.connection?.saveData;
     const sourceFor = (segment: RuntimeSegment) =>
-      (isMobile() || lightweight) && segment.mobileClip ? segment.mobileClip : segment.clip;
+      quality === "light" && segment.mobileClip ? segment.mobileClip : segment.clip;
     const runtime: RuntimeSegment[] = segments.map((segment, index) => ({
       ...segment,
       band: bandNodes[index],
@@ -352,6 +349,8 @@ export function ScrollScrub({
         video.preload = "auto";
         video.setAttribute("muted", "");
         video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.disablePictureInPicture = true;
         video.src = objectUrl;
 
         video.addEventListener(
@@ -597,7 +596,7 @@ export function ScrollScrub({
         segment.layer.style.removeProperty("z-index");
       }
     };
-  }, [segments]);
+  }, [segments, quality]);
 
   if (scenes.length === 0) {
     return null;
@@ -617,6 +616,11 @@ export function ScrollScrub({
       style={themeStyle}
     >
       <div className="scroll-scrub__stage">
+        <label className="quality-picker">Animation
+          <select aria-label="Animation quality" value={quality} onChange={(event) => setQuality(event.target.value as "high" | "light")}>
+            <option value="high">High quality</option><option value="light">Smooth / low data</option>
+          </select>
+        </label>
         <div aria-hidden="true" className="scroll-scrub__media">
           {segments.map((segment, index) => {
             const layerStyle: ThemeStyle = {
@@ -633,7 +637,7 @@ export function ScrollScrub({
                 <picture className="scroll-scrub__picture">
                   {segment.mobilePoster ? (
                     <source
-                      media="(hover: none) and (pointer: coarse), (max-width: 860px)"
+                      media={quality === "light" ? "all" : "not all"}
                       srcSet={segment.mobilePoster}
                     />
                   ) : null}
@@ -673,7 +677,7 @@ export function ScrollScrub({
       <div className="scroll-scrub__story">
         {segments.map((segment) => {
           const bandStyle: CSSProperties = {
-            minHeight: `${Math.max(segment.weight, 0.2) * 100}dvh`,
+            minHeight: `${Math.max(segment.weight, 0.2) * 100}svh`,
           };
 
           if (segment.kind === "connector") {

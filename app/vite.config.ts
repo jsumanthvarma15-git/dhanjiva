@@ -1,11 +1,10 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import netlify from "@netlify/vite-plugin-tanstack-start";
+import { nitro } from "nitro/vite";
 import {
   higgsfieldDesignInspectorVitePlugin,
-  higgsfieldDesignSourceBabelPlugin,
-} from "./src/module/design-inspector/vite";
+} from "./src/module/design-inspector/vite.ts";
 import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
@@ -50,13 +49,9 @@ export default defineConfig(({ mode }) => {
       tanstackStart({
         server: { entry: "server" },
       }),
-      netlify(),
+      nitro(),
       higgsfieldDesignInspectorVitePlugin(designInspectorEnabled),
-      react({
-        babel: {
-          plugins: designInspectorEnabled ? [higgsfieldDesignSourceBabelPlugin] : [],
-        },
-      }),
+      react(),
       tailwindcss(),
     ],
   };

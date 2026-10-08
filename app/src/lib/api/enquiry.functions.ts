@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { getDb } from "../../../db/index.js";
+import { getDb, databaseConfigured } from "../../../db/index.js";
 import { enquiries } from "../../../db/schema.js";
 
 export const submitEnquiry = createServerFn({ method: "POST" })
@@ -23,6 +23,9 @@ export const submitEnquiry = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (data.website) {
       return { ok: false, message: "Please leave the website field blank." };
+    }
+    if (!databaseConfigured()) {
+      return { ok: false, message: "Online access requests are temporarily unavailable. Please try again later." };
     }
     const id = crypto.randomUUID();
     const now = Date.now();

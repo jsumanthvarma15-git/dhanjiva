@@ -8,5 +8,5 @@ export const getGreeting = createServerFn({ method: "POST" })
   .validator(z.object({ name: z.string().min(1) }))
   .handler(async ({ data }) => {
     const result = await getDb().execute<{ n: number }>(sql`SELECT 1 AS n`);
-    return { greeting: `Hello, ${data.name}!`, env: "netlify", count: result.rows[0]?.n ?? 0 };
+    return { greeting: `Hello, ${data.name}!`, env: "server", count: result.rows[0]?.n ?? 0 };
   });
